@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+   <head>
+        
+      <meta charset="UTF-8">
+        
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        
+      <title>Health Metric Log Form</title>
+        
+      <style>
+             body {
+               font-family: 'Segoe UI', Arial, sans-serif;
+               background: linear-gradient(135deg, #daf0d7, #f0fff0);
+               display: flex;
+               justify-content: center;
+               align-items: center;
+               min-height: 100vh;
+               margin: 0;
+             }
+             .form-container {
+               background: #fff;
+               padding: 30px;
+               border-radius: 12px;
+               box-shadow: 0px 4px 14px rgba(0,0,0,0.1);
+               width: 380px;
+               transition: transform 0.2s ease;
+             }
+             .form-container:hover {
+               transform: scale(1.01);
+             }
+             h2 {
+               text-align: center;
+               margin-bottom: 20px;
+               color: #2f5d31;
+             }
+             label {
+               display: block;
+               margin-bottom: 6px;
+               font-weight: bold;
+               color: #333;
+             }
+             input, select, textarea {
+               width: 100%;
+               padding: 10px;
+               margin-bottom: 16px;
+               border: 1px solid #ccc;
+               border-radius: 6px;
+               outline: none;
+               transition: border-color 0.3s;
+               box-sizing: border-box; 
+             }
+             input:focus, select:focus, textarea:focus {
+               border-color: #4CAF50;
+             }
+             button {
+               width: 100%;
+               padding: 12px;
+               background: #4CAF50;
+               border: none;
+               color: white;
+               border-radius: 6px;
+               cursor: pointer;
+               font-size: 16px;
+               font-weight: bold;
+               transition: background 0.3s;
+             }
+             button:hover {
+               background: #43a047;
+             }
+             .message {
+               text-align: center;
+               margin-top: 10px;
+               font-weight: bold;
+             }
+             .error {
+               color: #c62828;
+             }
+             .success {
+               color: #2e7d32;
+             }
+           
+      </style>
+   </head>
+   <body>
+        
+      <div class="form-container">
+             
+         <h2>Log Health Metrics</h2>
+             
+         <form id="metricsForm">
+                  
+                  <label for="user_id">User ID</label>
+                  <input type="text" id="user_id" name="user_id" placeholder="Enter your registered user ID" required>
+                  <label for="timestamp">Timestamp (Date & Time)</label>
+                  <input type="datetime-local" id="timestamp" name="timestamp" required>
+                  <label for="weight_kg">Weight (kg)</label>
+                  <input type="number" id="weight_kg" name="weight_kg" placeholder="Enter current weight" step="0.1" min="10" max="500" required>
+                  <label for="height_cm">Height (cm, optional)</label>
+                  <input type="number" id="height_cm" name="height_cm" placeholder="Enter height (or leave blank to use profile height)" step="0.1" min="50" max="300">
+                  
+                  <label for="activity_level">Activity Level (optional)</label>
+                  
+            <select id="activity_level" name="activity_level">
+                       
+               <option value="">Select (or leave blank to use profile setting)</option>
+                       
+               <option value="sedentary">Sedentary</option>
+                       
+               <option value="light">Light</option>
+                       
+               <option value="moderate">Moderate</option>
+                       
+               <option value="active">Active</option>
+                       
+               <option value="very_active">Very Active</option>
+                     
+            </select>
+                  <label for="sleep_hours">Sleep (hours, optional)</label>
+                  <input type="number" id="sleep_hours" name="sleep_hours" placeholder="e.g., 7.5" step="0.1" min="0" max="24">
+                  <label for="calories_intake">Calories Intake (kcal, optional)</label>
+                  <input type="number" id="calories_intake" name="calories_intake" placeholder="e.g., 2500" min="0" max="10000">
+                  <label for="notes">Notes (optional)</label>
+                  
+            <textarea id="notes" name="notes" placeholder="Any relevant notes for this log..."></textarea>
+                  <button type="submit">Log Metrics</button>
+                  
+            <div class="message" id="message"></div>
+                
+         </form>
+           
+      </div>
+        <script>
+             const form = document.getElementById("metricsForm");
+             const msg = document.getElementById("message");
+             const timestampInput = document.getElementById("timestamp");
+         
+             function setInitialTimestamp() {
+               const now = new Date();
+               now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+               timestampInput.value = now.toISOString().slice(0, 16);
+             }
+         
+             setInitialTimestamp();
+         
+             form.addEventListener("submit", async (e) => {
+               e.preventDefault();
+               msg.textContent = "";
+               msg.className = "message";
+               
+               const getFloatValue = (id) => {
+                 const value = document.getElementById(id).value.trim();
+                 return value === "" ? null : parseFloat(value);
+               };
+               
+               const userId = document.getElementById("user_id").value.trim();
+               const weightKg = getFloatValue("weight_kg");
+         
+               if (weightKg === null || weightKg < 10 || weightKg > 500) {
+                 msg.textContent = "❌ Please enter a valid weight (10–500 kg).";
+                 msg.classList.add("error");
+                 return;
+               }
+         
+               const metricData = {
+                 weight_kg: weightKg,
+                 height_cm: getFloatValue("height_cm"),
+                 activity_level: document.getElementById("activity_level").value || null,
+                 sleep_hours: getFloatValue("sleep_hours"),
+                 calories_intake: getFloatValue("calories_intake"),
+                 notes: document.getElementById("notes").value.trim() || null,
+                 timestamp: document.getElementById("timestamp").value + ":00Z", 
+               };
+         
+               const url = `http://127.0.0.1:8000/api/users/${userId}/snapshots`;
+         
+               try {
+                 const res = await fetch(url, {
+                   method: "POST",
+                   headers: { "Content-Type": "application/json" },
+                   body: JSON.stringify(metricData),
+                 });
+         
+                 const data = await res.json();
+         
+                 if (res.ok) {
+                   msg.textContent = `✅ Metrics logged successfully for user ${userId}!`;
+                   msg.classList.add("success");
+                   console.log("Snapshot created:", data);
+                   
+                   document.getElementById("weight_kg").value = "";
+                   document.getElementById("sleep_hours").value = "";
+                   document.getElementById("calories_intake").value = "";
+                   document.getElementById("notes").value = "";
+                   setInitialTimestamp();
+                 } else {
+                   msg.textContent = "❌ " + (data.detail || "Something went wrong.");
+                   msg.classList.add("error");
+                   console.error("Server error:", data);
+                 }
+               } catch (err) {
+                 msg.textContent = "⚠️ Could not connect to the server. Check if the backend is running.";
+                 msg.classList.add("error");
+                 console.error(err);
+               }
+             });
+           
+      </script>
+   </body>
+</html>

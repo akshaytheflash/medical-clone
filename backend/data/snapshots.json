@@ -1,1 +1,28 @@
-{}
+{
+  "65afba90-cd80-4aef-878e-79642ba3b318": {
+    "user_id": "akshaytheflash",
+    "timestamp": "2025-10-07T19:25:00Z",
+    "weight_kg": 90.0,
+    "height_cm": 100.0,
+    "activity_level": "moderate",
+    "sleep_hours": 10.0,
+    "calories_intake": 2000.0,
+    "notes": "abc",
+    "bmi": 90.0,
+    "bmr": 1405.0,
+    "tdee": 2178.0
+  },
+  "5ec1ce4f-ce3c-4407-867e-c1f795a51773": {
+    "user_id": "akshaytheflash",
+    "timestamp": "2025-10-07T19:30:00Z",
+    "weight_kg": 100.0,
+    "height_cm": 100.0,
+    "activity_level": "moderate",
+    "sleep_hours": 12.0,
+    "calories_intake": 1000.0,
+    "notes": "no",
+    "bmi": 100.0,
+    "bmr": 1505.0,
+    "tdee": 2333.0
+  }
+}
