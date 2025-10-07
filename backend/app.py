@@ -3,6 +3,8 @@ from pydantic import BaseModel, Field
 from uuid import uuid4
 from datetime import datetime, date
 import json, os
+from fastapi.middleware.cors import CORSMiddleware
+
 
 DATA_DIR = "data"
 USERS_FILE = os.path.join(DATA_DIR, "users.json")
@@ -14,6 +16,15 @@ for f in (USERS_FILE, SNAP_FILE):
             json.dump({}, fh)
 
 app = FastAPI(title="Medical Clone — User Profile (baseline)")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # 👈 allows requests from any origin
+    allow_credentials=True,
+    allow_methods=["*"],  # GET, POST, PUT, DELETE, etc.
+    allow_headers=["*"],  # allows all headers
+)
+
 
 # --- helpers ---
 def read_json(path):

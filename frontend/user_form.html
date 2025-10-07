@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>User Health Form</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      background: linear-gradient(135deg, #daf0d7, #f0fff0);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      margin: 0;
+    }
+
+    .form-container {
+      background: #fff;
+      padding: 30px;
+      border-radius: 12px;
+      box-shadow: 0px 4px 14px rgba(0,0,0,0.1);
+      width: 380px;
+      transition: transform 0.2s ease;
+    }
+
+    .form-container:hover {
+      transform: scale(1.01);
+    }
+
+    h2 {
+      text-align: center;
+      margin-bottom: 20px;
+      color: #2f5d31;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 6px;
+      font-weight: bold;
+      color: #333;
+    }
+
+    input, select {
+      width: 100%;
+      padding: 10px;
+      margin-bottom: 16px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      outline: none;
+      transition: border-color 0.3s;
+    }
+
+    input:focus, select:focus {
+      border-color: #4CAF50;
+    }
+
+    button {
+      width: 100%;
+      padding: 12px;
+      background: #4CAF50;
+      border: none;
+      color: white;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 16px;
+      font-weight: bold;
+      transition: background 0.3s;
+    }
+
+    button:hover {
+      background: #43a047;
+    }
+
+    .message {
+      text-align: center;
+      margin-top: 10px;
+      font-weight: bold;
+    }
+
+    .error {
+      color: #c62828;
+    }
+
+    .success {
+      color: #2e7d32;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="form-container">
+    <h2>User Health Form</h2>
+    <form id="userForm">
+      <!-- Email -->
+      <label for="email">Email ID</label>
+      <input type="email" id="email" name="email" placeholder="Enter your email" required>
+
+      <!-- Full Name -->
+      <label for="name">Full Name</label>
+      <input type="text" id="name" name="name" placeholder="Enter your name" required>
+
+      <!-- DOB -->
+      <label for="dob">Date of Birth</label>
+      <input type="date" id="dob" name="dob" required>
+
+      <!-- Sex -->
+      <label for="sex">Sex</label>
+      <select id="sex" name="sex" required>
+        <option value="">Select</option>
+        <option value="male">Male</option>
+        <option value="female">Female</option>
+        <option value="other">Other</option>
+      </select>
+
+      <!-- Height -->
+      <label for="height">Height (cm)</label>
+      <input type="number" id="height" name="height" placeholder="Enter your height" min="50" max="300" required>
+
+      <!-- Weight -->
+      <label for="weight">Weight (kg)</label>
+      <input type="number" id="weight" name="weight" placeholder="Enter your weight" min="10" max="500" required>
+
+      <!-- Activity -->
+      <label for="activity">Activity Level</label>
+      <select id="activity" name="activity" required>
+        <option value="">Select</option>
+        <option value="sedentary">Sedentary</option>
+        <option value="light">Light</option>
+        <option value="moderate">Moderate</option>
+        <option value="active">Active</option>
+        <option value="very-active">Very Active</option>
+      </select>
+
+      <button type="submit">Submit</button>
+      <div class="message" id="message"></div>
+    </form>
+  </div>
+
+  <script>
+    const form = document.getElementById("userForm");
+    const msg = document.getElementById("message");
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      msg.textContent = "";
+      msg.className = "message";
+
+      const email = document.getElementById("email").value.trim();
+      const dob = new Date(document.getElementById("dob").value);
+      const today = new Date();
+      const age = today.getFullYear() - dob.getFullYear();
+
+      // Basic validation
+      if (age < 5 || age > 120) {
+        msg.textContent = "❌ Please enter a valid date of birth.";
+        msg.classList.add("error");
+        return;
+      }
+
+      const height = parseFloat(document.getElementById("height").value);
+      const weight = parseFloat(document.getElementById("weight").value);
+      if (isNaN(height) || height < 50 || height > 300) {
+        msg.textContent = "❌ Please enter a valid height between 50–300 cm.";
+        msg.classList.add("error");
+        return;
+      }
+
+      if (isNaN(weight) || weight < 10 || weight > 500) {
+        msg.textContent = "❌ Please enter a valid weight between 10–500 kg.";
+        msg.classList.add("error");
+        return;
+      }
+
+      const userData = {
+        user_id: email.split("@")[0],
+        name: document.getElementById("name").value.trim(),
+        dob: document.getElementById("dob").value,
+        sex: document.getElementById("sex").value,
+        height_cm: height,
+        weight_kg: weight,
+        activity_level: document.getElementById("activity").value,
+      };
+
+      try {
+        const res = await fetch("http://127.0.0.1:8000/api/users", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(userData),
+        });
+
+        const data = await res.json();
+
+        if (res.ok) {
+          msg.textContent = "✅ User created successfully!";
+          msg.classList.add("success");
+          form.reset();
+          console.log("User created:", data);
+        } else {
+          msg.textContent = "❌ " + (data.detail || "Something went wrong.");
+          msg.classList.add("error");
+          console.error("Server error:", data);
+        }
+      } catch (err) {
+        msg.textContent = "⚠️ Could not connect to the server.";
+        msg.classList.add("error");
+        console.error(err);
+      }
+    });
+  </script>
+</body>
+</html>
