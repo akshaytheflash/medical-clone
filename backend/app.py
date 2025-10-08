@@ -4,6 +4,7 @@ from uuid import uuid4
 from datetime import datetime, date
 import json, os
 from fastapi.middleware.cors import CORSMiddleware
+from typing import Optional
 
 
 DATA_DIR = "data"
@@ -12,27 +13,27 @@ SNAP_FILE = os.path.join(DATA_DIR, "snapshots.json")
 os.makedirs(DATA_DIR, exist_ok=True)
 for f in (USERS_FILE, SNAP_FILE):
     if not os.path.exists(f):
-        with open(f, "w") as fh:
+        with open(f, "w", encoding="utf-8") as fh:
             json.dump({}, fh)
 
 app = FastAPI(title="Medical Clone — User Profile (baseline)")
 
+# --- CORS ---
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # 👈 allows requests from any origin
+    allow_origins=["*"],   # 👈 allows all origins
     allow_credentials=True,
-    allow_methods=["*"],  # GET, POST, PUT, DELETE, etc.
-    allow_headers=["*"],  # allows all headers
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
-
 
 # --- helpers ---
 def read_json(path):
-    with open(path, "r") as fh:
+    with open(path, "r", encoding="utf-8") as fh:
         return json.load(fh)
 
 def write_json(path, data):
-    with open(path, "w") as fh:
+    with open(path, "w", encoding="utf-8") as fh:
         json.dump(data, fh, indent=2)
 
 def age_from_dob(dob_str):
@@ -46,7 +47,6 @@ def calculate_bmi(weight_kg: float, height_cm: float):
     return round(weight_kg / (h_m * h_m), 2)
 
 def calculate_bmr(weight_kg: float, height_cm: float, age: int, sex: str):
-    # Mifflin-St Jeor
     base = 10 * weight_kg + 6.25 * height_cm - 5 * age
     if sex.lower() == "male":
         return round(base + 5, 0)
@@ -68,12 +68,12 @@ def calculate_tdee(bmr: float, activity_level: str):
 # --- models ---
 class UserCreate(BaseModel):
     name: str
-    dob: str = Field(..., example="1990-05-20")
-    sex: str = Field(..., example="male")
+    dob: str
+    sex: str
     height_cm: float
     weight_kg: float
     activity_level: str = Field("sedentary")
-    user_id : str = Field(..., example="akshaytheflash")
+    user_id: str
 
 class UserOut(UserCreate):
     id: str
@@ -85,7 +85,7 @@ class SnapshotCreate(BaseModel):
     sleep_hours: float = None
     calories_intake: float = None
     notes: str = None
-    timestamp: str = None  # ISO format, optional
+    timestamp: str = None
 
 class SnapshotOut(BaseModel):
     id: str
@@ -94,37 +94,35 @@ class SnapshotOut(BaseModel):
     weight_kg: float
     height_cm: float
     activity_level: str
-    sleep_hours: float = None
-    calories_intake: float = None
-    notes: str = None
+    sleep_hours: Optional[float] = None
+    calories_intake: Optional[float] = None
+    notes: Optional[str] = None
     bmi: float
     bmr: float
     tdee: float
 
 
-# --- endpoints ---
+# --- ROUTES ---
+@app.get("/api/health")
+def health_check():
+    return {"status": "ok"}
+
 @app.post("/api/users", response_model=UserOut)
 def create_user(u: UserCreate):
     users = read_json(USERS_FILE)
-    
-    # Use user_id provided by the user as the key
     uid = u.user_id
-    
-    # Optional: prevent overwriting existing user_id
     if uid in users:
-        raise HTTPException(status_code=400, detail="user_id already exists")
-    
+        raise HTTPException(400, detail="user_id already exists")
     users[uid] = u.dict()
     users[uid]["created_at"] = datetime.utcnow().isoformat()
     write_json(USERS_FILE, users)
-    
     return {"id": uid, **u.dict()}
 
 @app.get("/api/users/{user_id}", response_model=UserOut)
 def get_user(user_id: str):
     users = read_json(USERS_FILE)
     if user_id not in users:
-        raise HTTPException(status_code=404, detail="User not found")
+        raise HTTPException(404, detail="User not found")
     return {"id": user_id, **{k:v for k,v in users[user_id].items() if k in UserCreate.__fields__}}
 
 @app.post("/api/users/{user_id}/snapshots", response_model=SnapshotOut)
@@ -132,25 +130,18 @@ def create_snapshot(user_id: str, s: SnapshotCreate):
     users = read_json(USERS_FILE)
     if user_id not in users:
         raise HTTPException(404, detail="User not found")
-    
+
     user = users[user_id]
-    
-    # Use snapshot values if provided, else fallback to profile
-    height = s.height_cm if s.height_cm is not None else user.get("height_cm")
-    activity_level = s.activity_level if s.activity_level else user.get("activity_level", "sedentary")
+    height = s.height_cm or user.get("height_cm")
+    activity = s.activity_level or user.get("activity_level", "sedentary")
     weight = s.weight_kg
-    
     age = age_from_dob(user["dob"])
-    
-    # Calculated metrics
+
     bmi = calculate_bmi(weight, height)
     bmr = calculate_bmr(weight, height, age, user["sex"])
-    tdee = calculate_tdee(bmr, activity_level)
-    
-    # Timestamp
+    tdee = calculate_tdee(bmr, activity)
     ts = s.timestamp or datetime.utcnow().isoformat()
-    
-    # Load snapshots file
+
     snaps = read_json(SNAP_FILE)
     sid = str(uuid4())
     snaps[sid] = {
@@ -158,7 +149,7 @@ def create_snapshot(user_id: str, s: SnapshotCreate):
         "timestamp": ts,
         "weight_kg": weight,
         "height_cm": height,
-        "activity_level": activity_level,
+        "activity_level": activity,
         "sleep_hours": s.sleep_hours,
         "calories_intake": s.calories_intake,
         "notes": s.notes,
@@ -167,34 +158,20 @@ def create_snapshot(user_id: str, s: SnapshotCreate):
         "tdee": tdee
     }
     write_json(SNAP_FILE, snaps)
-    
-    return {
-        "id": sid,
-        "user_id": user_id,
-        "timestamp": ts,
-        "weight_kg": weight,
-        "height_cm": height,
-        "activity_level": activity_level,
-        "sleep_hours": s.sleep_hours,
-        "calories_intake": s.calories_intake,
-        "notes": s.notes,
-        "bmi": bmi,
-        "bmr": bmr,
-        "tdee": tdee
-    }
+
+    return {"id": sid, "user_id": user_id, "timestamp": ts, **snaps[sid]}
 
 @app.get("/api/users/{user_id}/snapshots", response_model=list[SnapshotOut])
 def list_snapshots(user_id: str):
     users = read_json(USERS_FILE)
     if user_id not in users:
         raise HTTPException(404, detail="User not found")
-    
+
     snaps = read_json(SNAP_FILE)
-    user_snaps = []
-    for sid, snap in snaps.items():
-        if snap["user_id"] == user_id:
-            user_snaps.append({"id": sid, **snap})
-    # Optional: sort by timestamp
+    user_snaps = [
+        {"id": sid, **snap}
+        for sid, snap in snaps.items()
+        if snap["user_id"] == user_id
+    ]
     user_snaps.sort(key=lambda x: x["timestamp"])
     return user_snaps
-

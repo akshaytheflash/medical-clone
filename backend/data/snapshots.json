@@ -24,5 +24,57 @@
     "bmi": 100.0,
     "bmr": 1505.0,
     "tdee": 2333.0
+  },
+  "468a755b-71cb-4c25-8f78-ae20c39fa914": {
+    "user_id": "akshaytheflash",
+    "timestamp": "2025-10-08T15:11:36.742164",
+    "weight_kg": 40.0,
+    "height_cm": 291.0,
+    "activity_level": "moderate",
+    "sleep_hours": null,
+    "calories_intake": null,
+    "notes": null,
+    "bmi": 4.72,
+    "bmr": 2099.0,
+    "tdee": 3253.0
+  },
+  "3b1f881e-833d-4891-b006-e1e84a582731": {
+    "user_id": "akshaytheflash",
+    "timestamp": "2025-10-08T15:11:41.132406",
+    "weight_kg": 40.0,
+    "height_cm": 291.0,
+    "activity_level": "moderate",
+    "sleep_hours": null,
+    "calories_intake": null,
+    "notes": null,
+    "bmi": 4.72,
+    "bmr": 2099.0,
+    "tdee": 3253.0
+  },
+  "2c7bf11f-146a-468f-b995-72c9b9bde927": {
+    "user_id": "akshaytheflash",
+    "timestamp": "2025-10-08T15:11:47.416396",
+    "weight_kg": 100.0,
+    "height_cm": 291.0,
+    "activity_level": "moderate",
+    "sleep_hours": null,
+    "calories_intake": null,
+    "notes": null,
+    "bmi": 11.81,
+    "bmr": 2699.0,
+    "tdee": 4183.0
+  },
+  "f3aaca37-5151-455a-9cbd-17a7373885e0": {
+    "user_id": "akshaytheflash",
+    "timestamp": "2025-10-08T15:44:36.402349",
+    "weight_kg": 99.0,
+    "height_cm": 244.0,
+    "activity_level": "moderate",
+    "sleep_hours": 18.0,
+    "calories_intake": 999.0,
+    "notes": null,
+    "bmi": 16.63,
+    "bmr": 2395.0,
+    "tdee": 3712.0
   }
 }

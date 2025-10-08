@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+   <head>
+      <meta charset="utf-8" />
+      <meta name="viewport" content="width=device-width,initial-scale=1" />
+      <title>Twin Health Dashboard</title>
+      <style>
+         body{font-family:"Poppins",sans-serif;background:linear-gradient(180deg,#e8f8f5,#f3f8ff);margin:0;color:#222}
+         header{background:#0e6a53;color:#fff;padding:18px;text-align:center;font-size:22px;font-weight:600}
+         .wrap{padding:30px;display:flex;flex-direction:column;align-items:center;gap:24px}
+         .card{background:#fff;border-radius:12px;box-shadow:0 6px 18px rgba(0,0,0,0.06);padding:20px;width:100%;max-width:980px}
+         .profile{display:flex;gap:18px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+         .profile-left h2{margin:0;color:#0b5c4a}
+         button{background:#28a745;color:#fff;border:none;padding:10px 18px;border-radius:8px;cursor:pointer;font-weight:600}
+         button:hover{background:#218838}
+         .graph-box{background:#fff;border-radius:10px;padding:12px;box-shadow:0 6px 18px rgba(0,0,0,0.04);min-height:140px}
+         .muted{color:#7f8b88;font-size:13px}
+         /* Popup form */
+         #snapFormModal {
+         display: none;
+         position: fixed; inset: 0;
+         background: rgba(0,0,0,0.5);
+         justify-content: center; align-items: center;
+         z-index: 20;
+         }
+         #snapForm {
+         background: #fff; padding: 24px; border-radius: 10px;
+         width: 320px; box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+         }
+         #snapForm h3 { margin-top: 0; color:#0b5c4a; text-align:center; }
+         #snapForm label { display:block; margin:10px 0 4px; font-weight:500; }
+         #snapForm input, #snapForm select {
+         width:100%; padding:8px; border:1px solid #ccc; border-radius:6px;
+         }
+         #snapForm button { margin-top:14px; width:100%; }
+      </style>
+   </head>
+   <body>
+      <header>Twin Health Dashboard</header>
+      <div class="wrap">
+         <div class="card profile">
+            <div class="profile-left">
+               <h2 id="name">User</h2>
+               <p><strong>Email:</strong> <span id="email">-</span></p>
+               <p><strong>Age:</strong> <span id="age">-</span> | <strong>Sex:</strong> <span id="sex">-</span></p>
+               <p><strong>Height:</strong> <span id="height">-</span> cm | <strong>Weight:</strong> <span id="weight">-</span> kg</p>
+               <p><strong>BMI:</strong> <span id="bmi">-</span></p>
+            </div>
+            <div>
+               <button id="addSnap">Add Snapshot</button>
+               <div id="twinScore" class="muted" style="margin-top:8px"></div>
+            </div>
+         </div>
+         <div class="card">
+            <h3>Snapshots</h3>
+            <table id="snapTable" border="1" style="width:100%;border-collapse:collapse">
+               <thead>
+                  <tr>
+                     <th>Date</th>
+                     <th>Weight</th>
+                     <th>BMI</th>
+                     <th>Activity</th>
+                  </tr>
+               </thead>
+               <tbody id="snapBody"></tbody>
+            </table>
+         </div>
+         <div class="graph-box">
+            <h3>BMI Trend</h3>
+            <canvas id="bmiCanvas" width="380" height="160"></canvas>
+         </div>
+      </div>
+      <!-- Popup form for snapshot -->
+      <div id="snapFormModal">
+         <form id="snapForm">
+            <h3>Add Snapshot</h3>
+            <label>Height (cm)</label>
+            <input type="number" id="heightInput" required />
+            <label>Weight (kg)</label>
+            <input type="number" id="weightInput" required />
+            <label>Calories Intake (kcal/day)</label>
+            <input type="number" id="caloriesInput" required />
+            <label>Sleep Hours</label>
+            <input type="number" id="sleepInput" step="0.1" required />
+            <label>Activity Level</label>
+            <select id="activityInput" required>
+               <option value="">Select</option>
+               <option value="sedentary">Sedentary</option>
+               <option value="light">Light</option>
+               <option value="moderate">Moderate</option>
+               <option value="active">Active</option>
+               <option value="very_active">Very Active</option>
+            </select>
+            <button type="submit">Save Snapshot</button>
+            <button type="button" id="cancelSnap" style="background:#dc3545;margin-top:8px;">Cancel</button>
+         </form>
+      </div>
+      <script>
+         const API = "http://127.0.0.1:8000/api";
+         const $ = id => document.getElementById(id);
+         
+         function getUserId() {
+           const params = new URLSearchParams(window.location.search);
+           return params.get("user_id");
+         }
+         
+         async function loadUser(user_id) {
+           const res = await fetch(`${API}/users/${user_id}`);
+           if (!res.ok) throw new Error("User not found");
+           const user = await res.json();
+           $('name').textContent = user.name;
+           $('email').textContent = user.user_id + "@domain.com";
+           $('sex').textContent = user.sex;
+           $('height').textContent = user.height_cm;
+           $('weight').textContent = user.weight_kg;
+           $('age').textContent = user.dob;
+           // Pre-fill height
+           $('heightInput').value = user.height_cm;
+           return user;
+         }
+         
+         async function loadSnapshots(user_id) {
+           const res = await fetch(`${API}/users/${user_id}/snapshots`);
+           if (!res.ok) throw new Error("Failed to load snapshots");
+           const snaps = await res.json();
+           const tbody = $('snapBody');
+           tbody.innerHTML = "";
+           snaps.forEach(s => {
+             const tr = document.createElement('tr');
+             tr.innerHTML = `<td>${new Date(s.timestamp).toLocaleDateString()}</td>
+                             <td>${s.weight_kg}</td>
+                             <td>${s.bmi}</td>
+                             <td>${s.activity_level}</td>`;
+             tbody.appendChild(tr);
+           });
+           drawBMIChart(snaps);
+           if (snaps.length) {
+             const last = snaps.at(-1);
+             $('bmi').textContent = last.bmi;
+             $('weight').textContent = last.weight_kg;
+             $('twinScore').textContent = `Twin Health Index: ${Math.round(100 - Math.abs(last.bmi - 22))}/100`;
+           }
+         }
+         
+         function drawBMIChart(snaps) {
+           const canvas = $('bmiCanvas');
+           const ctx = canvas.getContext('2d');
+           ctx.clearRect(0,0,canvas.width,canvas.height);
+           if (!snaps.length) {
+             ctx.fillText("No snapshots yet", 100, 80);
+             return;
+           }
+           const values = snaps.map(s=>s.bmi);
+           const min = Math.min(...values)-1, max=Math.max(...values)+1;
+           const h=canvas.height, w=canvas.width, margin=20;
+           ctx.beginPath();
+           ctx.moveTo(margin, h-margin);
+           ctx.lineTo(w-margin, h-margin);
+           ctx.strokeStyle="#ddd"; ctx.stroke();
+           ctx.beginPath();
+           ctx.strokeStyle="#0a6d4f"; ctx.lineWidth=2;
+           values.forEach((v,i)=>{
+             const x = margin + (i/(values.length-1))*(w-2*margin);
+             const y = h-margin - ((v-min)/(max-min))*(h-2*margin);
+             i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+           });
+           ctx.stroke();
+         }
+         
+         // Open form
+         $('addSnap').addEventListener('click', ()=>{
+           $('snapFormModal').style.display = 'flex';
+         });
+         
+         // Cancel
+         $('cancelSnap').addEventListener('click', ()=>{
+           $('snapFormModal').style.display = 'none';
+         });
+         
+         // Submit
+         $('snapForm').addEventListener('submit', async (e)=>{
+           e.preventDefault();
+           const user_id = getUserId();
+           const payload = {
+             weight_kg: Number($('weightInput').value),
+             height_cm: Number($('heightInput').value),
+             activity_level: $('activityInput').value,
+             sleep_hours: Number($('sleepInput').value),
+             calories_intake: Number($('caloriesInput').value)
+           };
+           try {
+             const res = await fetch(`${API}/users/${user_id}/snapshots`, {
+               method: "POST",
+               headers: {"Content-Type": "application/json"},
+               body: JSON.stringify(payload)
+             });
+             if (!res.ok) throw new Error(await res.text());
+             $('snapFormModal').style.display = 'none';
+             $('snapForm').reset();
+             await loadSnapshots(user_id);
+           } catch(err) {
+             alert("Error saving snapshot: " + err.message);
+           }
+         });
+         
+         document.addEventListener("DOMContentLoaded", async ()=>{
+           const user_id = getUserId();
+           if (!user_id) {
+             alert("No user_id in URL. Example: dashboard.html?user_id=akshaytheflash");
+             return;
+           }
+           try {
+             await loadUser(user_id);
+             await loadSnapshots(user_id);
+           } catch(e) {
+             alert("Error loading user: " + e.message);
+           }
+         });
+      </script>
+   </body>
+</html>
